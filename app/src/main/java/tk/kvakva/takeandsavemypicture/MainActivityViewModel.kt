@@ -69,6 +69,8 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
     //val webcamurl: LiveData<String> = _webcamurl
     var localuri = MutableLiveData<String>()
     // val localuri: LiveData<String> = _localuri
+    var localipcamuri = MutableLiveData<String>()
+    var localwebcamuri = MutableLiveData<String>()
 
     init {
         updateUrlsFromDataStore()
@@ -146,6 +148,7 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
                                                 BitmapFactory.decodeStream(it).asImageBitmap()
                                             )
                                         }
+                                        localipcamuri.postValue(this.toString())
                                     }
                                     if (newdf?.uri == null) {
                                         dlinkibm.postValue(
@@ -223,6 +226,7 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
                                                 BitmapFactory.decodeStream(it).asImageBitmap()
                                             )
                                         }
+                                        localwebcamuri.postValue(this.toString())
                                     }
                                     if (newdf?.uri == null) {
                                         webcamibm.postValue(
@@ -312,6 +316,7 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
                         webcamibm.postValue(
                             BitmapFactory.decodeStream(inputStream).asImageBitmap()
                         )
+                        localwebcamuri.postValue(it.toString())
                     }
                 }
 
@@ -328,6 +333,7 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
                             dlinkibm.postValue(
                                 BitmapFactory.decodeStream(inputStream).asImageBitmap()
                             )
+                            localipcamuri.postValue(it.toString())
                         }
                     }
                 }

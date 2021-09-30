@@ -1,7 +1,10 @@
 package tk.kvakva.takeandsavemypicture
 
 import android.content.Intent
+import android.content.UriMatcher
+import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -36,6 +39,16 @@ private const val TAG = "MainActivity"
 class MainActivity : ComponentActivity() {
 
     private val mainActivityViewModel by viewModels<MainActivityViewModel>()
+
+    private var editImgLauncher = registerForActivityResult(
+        ActivityResultContracts
+            .StartActivityForResult()
+    ){
+        Log.i(TAG, "editMyPic: resultCode: ${it.resultCode}")
+        Log.i(TAG, "editMyPic: data,data: ${it.data?.data}")
+        Log.i(TAG, "editMyPic: data: ${it.data}")
+        Log.i(TAG, "editMyPic: data.scheme: ${it.data?.scheme}")
+    }
 
     private var dirpicker = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -177,7 +190,7 @@ class MainActivity : ComponentActivity() {
                                 onValueChange = { mainActivityViewModel.webcamurl.postValue(it) },
                                 label = { Text("Web Camera URL") },
 
-                            )
+                                )
                             Divider(
                                 Modifier.padding(2.dp),
                                 thickness = 2.dp,
@@ -192,7 +205,7 @@ class MainActivity : ComponentActivity() {
                 onRefresh =
                 {
                     if (mainActivityViewModel.ipcamurl.value.isNullOrBlank() and mainActivityViewModel.webcamurl.value.isNullOrBlank()) {
-                        displaydialog=true
+                        displaydialog = true
                         Log.i(
                             TAG,
                             "Greeting: Swiped but no urls found in settings"
@@ -225,9 +238,26 @@ class MainActivity : ComponentActivity() {
                             // painterResource(R.drawable.wg433),
                             "another picture",
                             modifier = Modifier
-                                .fillMaxWidth(),
-                            contentScale = ContentScale.FillWidth
-                        )
+                                .fillMaxWidth()
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            if (!dlinkfilename.isNullOrBlank()) {
+                                                Log.i(
+                                                    TAG,
+                                                    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\nGreeting: ${mainActivityViewModel.localipcamuri.value}"
+                                                )
+                                                mainActivityViewModel
+                                                    .localipcamuri.value?.let { uriString ->
+                                                        editMyPic(uriString)
+                                                    }
+                                            }
+                                        },
+                                    )
+                                },
+                            contentScale = ContentScale.FillWidth,
+
+                            )
                     }
 
                     Spacer(Modifier.height(8.dp))
@@ -248,7 +278,24 @@ class MainActivity : ComponentActivity() {
                             //modifier = Modifier
                             //.align(Alignment.CenterHorizontally)
                             //.fillMaxWidth()
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            if (!dlinkfilename.isNullOrBlank()) {
+                                                Log.i(
+                                                    TAG,
+                                                    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\nGreeting: ${mainActivityViewModel.localipcamuri.value}"
+                                                )
+                                                mainActivityViewModel
+                                                    .localwebcamuri.value?.let { uriString ->
+                                                        editMyPic(uriString)
+                                                    }
+                                            }
+                                        },
+                                    )
+                                },
                         )
                     }
 
@@ -262,7 +309,7 @@ class MainActivity : ComponentActivity() {
                         Button(
                             onClick = {
                                 if (mainActivityViewModel.ipcamurl.value.isNullOrBlank() and mainActivityViewModel.webcamurl.value.isNullOrBlank()) {
-                                    displaydialog=true
+                                    displaydialog = true
                                     Log.i(
                                         TAG,
                                         "Greeting: Download clicked but no urls found in settings"
@@ -279,6 +326,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    fun editMyPic(uriStr: String) {
+        val i = Intent(Intent.ACTION_EDIT)
+        i.setDataAndType(Uri.parse(uriStr), "image/*")
+        i.putExtra(MediaStore.EXTRA_OUTPUT, Uri.parse(uriStr))
+        i.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        editImgLauncher.launch(i)
     }
 }
 //@Preview(showBackground = true)
