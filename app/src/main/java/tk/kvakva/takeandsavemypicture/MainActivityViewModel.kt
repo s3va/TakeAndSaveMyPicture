@@ -20,12 +20,10 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.lang.IllegalArgumentException
 
@@ -33,7 +31,7 @@ private const val LOCALURI = "localuri"
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "urlsanduri")
 
-class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
+class MainActivityViewModel(private val appl: Application) : AndroidViewModel(appl) {
 
     fun saveUrls() {
         viewModelScope.launch {
@@ -68,6 +66,7 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
 
     //val webcamurl: LiveData<String> = _webcamurl
     var localuri = MutableLiveData<String>()
+
     // val localuri: LiveData<String> = _localuri
     var localipcamuri = MutableLiveData<String>()
     var localwebcamuri = MutableLiveData<String>()
@@ -94,7 +93,7 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
         }
     }
 
-    val mutex = Mutex()
+    private val mutex = Mutex()
     fun download() {
         Log.i(TAG, "download: started")
         viewModelScope.launch(Dispatchers.IO) {
@@ -105,89 +104,22 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
             Log.i(TAG, "download: refreshing start")
             isRefreshing.emit(true)
 
-            if (!ipcamurl.value.isNullOrBlank())
-                if (URLUtil.isHttpsUrl(ipcamurl.value))
-                    try {
-                        val jpegfl = ipcamurl.value?.let { retrofitService.getPicture(it) }
-                        jpegfl?.let { responseBody ->
-                            if (responseBody.isSuccessful) {
-                                val dftree = try {
-                                    DocumentFile.fromTreeUri(
-                                        appl.applicationContext,
-                                        Uri.parse(
-                                            localuri.value ?: ""
-                                        )
-                                    )
-                                } catch (e: IllegalArgumentException) {
-                                    e.printStackTrace()
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(
-                                            appl,
-                                            "Select catalog to save files",
-                                            Toast.LENGTH_LONG
-                                        )
-                                            .show()
-                                    }
-                                    null
-                                }
-                                responseBody.body()?.use { body ->
-                                    val fname = responseBody.headers()["Content-Disposition"]
-                                        ?.replace("filename=", "")
-                                        ?.replace("\"", "") ?: "${datelocaltimestring()}.jpeg"
-                                    Log.i(TAG, "download: $fname")
-                                    val newdf = dftree?.createFile("image/jpeg", fname)
-                                    dlinkcamfilename.postValue(fname)
-                                    newdf?.uri?.run {
-                                        appl.contentResolver.openOutputStream(this)?.use {
-                                            it.write(body.bytes())
-                                        }
-                                    }
-                                    newdf?.uri?.run {
-                                        appl.contentResolver.openInputStream(this)?.use {
-                                            dlinkibm.postValue(
-                                                BitmapFactory.decodeStream(it).asImageBitmap()
-                                            )
-                                        }
-                                        localipcamuri.postValue(this.toString())
-                                    }
-                                    if (newdf?.uri == null) {
-                                        dlinkibm.postValue(
-                                            BitmapFactory.decodeStream(body.byteStream())
-                                                .asImageBitmap()
-                                        )
-                                    }
-                                }
-                            } else {
-                                val errorString = responseBody.errorBody()?.string()
-                                Log.i(
-                                    TAG,
-                                    "download: ${responseBody.code()}\n\n$errorString"
-                                )
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(
-                                        appl.applicationContext,
-                                        "${responseBody.code()}\n\n$errorString",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }
-                        }
-                    } catch (e: IOException) {
-                        e.printStackTrace()
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(appl, e.stackTraceToString(), Toast.LENGTH_LONG).show()
-                        }
-                    }
-                else
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            appl,
-                            "${ipcamurl.value}\nis not https url",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+            if(!ipcamurl.value.isNullOrBlank()) {
+                val p = dl(ipcamurl.value!!,localuri.value)
+                if(p.first!=null)
+                    dlinkibm.postValue(p.first?.asImageBitmap())
+                if(p.second!=null)
+                    dlinkcamfilename.postValue(p.second)
+            }
+            if(!webcamurl.value.isNullOrBlank()) {
+                val p = dl(webcamurl.value!!,localuri.value)
+                if(p.first!=null)
+                    webcamibm.postValue(p.first?.asImageBitmap())
+                if(p.second!=null)
+                    webcamfilename.postValue(p.second)
+            }
 
-            if (!webcamurl.value.isNullOrBlank())
+            /*if (!webcamurl.value.isNullOrBlank())
                 if (URLUtil.isHttpsUrl(webcamurl.value))
                     try {
                         val jpegfl = webcamurl.value?.let { retrofitService.getPicture(it) }
@@ -264,6 +196,7 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
                             Toast.LENGTH_LONG
                         ).show()
                     }
+*/
 
             isRefreshing.emit(false)
             Log.i(TAG, "download: refreshing stoped")
@@ -294,7 +227,8 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
                 TAG,
                 "!!!!!!!!!!!!!!!!!!!!!!!!!!! ${data[stringPreferencesKey(LOCALURI)]} !!!!!!!!!!!!!!!!!!!!!!!!!: !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
             )
-            data[stringPreferencesKey(LOCALURI)]?.let { localUriStr ->
+            val localUriStr = data[stringPreferencesKey(LOCALURI)]
+            if (!localUriStr.isNullOrBlank()) { //localUriStr ->
                 Log.i(TAG, "************* localuri.value?.let { localUriStr ->: $localUriStr ")
                 val dftree = DocumentFile.fromTreeUri(
                     appl.applicationContext,
@@ -305,40 +239,48 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
                 }
                 Log.i(TAG, "dlist: $dlist")
                 dlist?.firstOrNull()?.uri?.let {
-                    appl.contentResolver.query(it, null, null, null, null)?.use { curs ->
-                        curs.moveToFirst()
-                        webcamfilename.postValue(
-                            curs.getString(curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME))
-                        )
-                    }
+
                     Log.i(TAG, "first Uri: $it")
                     appl.contentResolver.openInputStream(it).use { inputStream ->
-                        webcamibm.postValue(
-                            BitmapFactory.decodeStream(inputStream).asImageBitmap()
-                        )
-                        localwebcamuri.postValue(it.toString())
+                        val bm = BitmapFactory
+                            .decodeStream(inputStream)
+                            ?.asImageBitmap()
+                        if (bm != null) {
+                            webcamibm.postValue(bm)
+                            localwebcamuri.postValue(it.toString())
+                            appl.contentResolver.query(it, null, null, null, null)?.use { curs ->
+                                curs.moveToFirst()
+                                webcamfilename.postValue(
+                                    curs.getString(curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME))
+                                )
+                            }
+                        }
                     }
                 }
 
                 if (dlist.orEmpty().size > 1) {
                     dlist?.component2()?.uri?.let {
-                        appl.contentResolver.query(it, null, null, null, null)?.use { curs ->
-                            curs.moveToFirst()
-                            dlinkcamfilename.postValue(
-                                curs.getString(curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME))
-                            )
-                        }
-                        Log.i(TAG, "first Uri: $it")
+                        Log.i(TAG, "second Uri: $it")
                         appl.contentResolver.openInputStream(it).use { inputStream ->
-                            dlinkibm.postValue(
-                                BitmapFactory.decodeStream(inputStream).asImageBitmap()
-                            )
-                            localipcamuri.postValue(it.toString())
+                            val bm = BitmapFactory
+                                .decodeStream(inputStream)
+                                ?.asImageBitmap()
+                            if (bm != null) {
+                                dlinkibm.postValue(bm)
+                                localipcamuri.postValue(it.toString())
+                                appl.contentResolver.query(it, null, null, null, null)
+                                    ?.use { curs ->
+                                        curs.moveToFirst()
+                                        dlinkcamfilename.postValue(
+                                            curs.getString(curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME))
+                                        )
+                                    }
+                            }
                         }
                     }
                 }
-            }
-            Log.i(TAG, "cannot get first file: to bitmap")
+            } else
+                Log.i(TAG, "cannot get first file: to bitmap")
         }
     }
 
@@ -346,6 +288,99 @@ class MainActivityViewModel(val appl: Application) : AndroidViewModel(appl) {
 
     var webcamfilename = MutableLiveData<String>()
     var dlinkcamfilename = MutableLiveData<String>()
+
+    private suspend fun dl(urlstring: String, localTreeUri: String?): Pair<Bitmap?, String?> {
+        var fname: String? = null
+        var bm: Bitmap? = null
+
+        if (urlstring.isNotBlank())
+            if (URLUtil.isHttpsUrl(urlstring))
+                try {
+                    val response = retrofitService.getPicture(urlstring)
+                    if (response.isSuccessful) {
+                        val dftree = try {
+                            DocumentFile.fromTreeUri(
+                                appl.applicationContext,
+                                Uri.parse(
+                                    localTreeUri ?: ""
+                                )
+                            )
+                        } catch (e: IllegalArgumentException) {
+                            e.printStackTrace()
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    appl,
+                                    "Select catalog to save files",
+                                    Toast.LENGTH_LONG
+                                )
+                                    .show()
+                            }
+                            null
+                        }
+                        response.body()?.use { body ->
+                            fname = response.headers()["Content-Disposition"]
+                                ?.replace("filename=", "")
+                                ?.replace("\"", "") // ?: "${datelocaltimestring()}.jpeg"
+                            if (!fname.isNullOrBlank()) {
+                                Log.i(TAG, "download: $fname")
+                                val newdf = dftree?.createFile("image/jpeg", fname!!)
+                                val bb = body.byteStream().use {
+                                    it.readBytes()
+                                }
+                                if (newdf?.uri != null) {
+                                    viewModelScope.launch(Dispatchers.IO) {
+                                        appl.contentResolver.openOutputStream(newdf.uri)?.use {
+                                            it.write(bb)
+                                        }
+                                    }
+                                    bm = BitmapFactory
+                                        .decodeByteArray(bb, 0, bb.size)
+                                } else {
+                                    dlinkibm.postValue(
+                                        BitmapFactory.decodeStream(body.byteStream())
+                                            .asImageBitmap()
+                                    )
+                                }
+                            } else {
+                                Log.i(
+                                    TAG,
+                                    "download: fname is not defined in http header Content-Disposition for d-link ip camera"
+                                )
+                            }
+                        }
+                    } else {
+                        val errorString: String? = viewModelScope.async(Dispatchers.IO) {
+                            response.errorBody()?.string()
+                        }.await()
+                        Log.i(
+                            TAG,
+                            "download: ${response.code()}\n\n$errorString"
+                        )
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                appl.applicationContext,
+                                "${response.code()}\n\n$errorString",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(appl, e.stackTraceToString(), Toast.LENGTH_LONG).show()
+                    }
+                }
+            else
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        appl,
+                        "${ipcamurl.value}\nis not https url",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+        return Pair(bm,fname)
+    }
 }
 
 private const val TAG = "MainActivityViewModel"
+
