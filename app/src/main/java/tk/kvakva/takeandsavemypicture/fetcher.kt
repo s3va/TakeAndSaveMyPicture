@@ -4,6 +4,7 @@ import android.os.Build
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.*
@@ -60,13 +61,13 @@ val singlRetrofit: Retrofit by lazy {
                 .writeTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(15, TimeUnit.SECONDS)
                 .callTimeout(45, TimeUnit.SECONDS)
-/*
+
                 .addInterceptor(
                     HttpLoggingInterceptor().apply {
                         level = HttpLoggingInterceptor.Level.HEADERS
                     }
                 )
-*/
+
                 .build()
         )
         .baseUrl("https://127.0.0.1")

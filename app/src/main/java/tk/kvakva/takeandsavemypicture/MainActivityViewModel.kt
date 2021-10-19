@@ -104,18 +104,18 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
             Log.i(TAG, "download: refreshing start")
             isRefreshing.emit(true)
 
-            if(!ipcamurl.value.isNullOrBlank()) {
-                val p = dl(ipcamurl.value!!,localuri.value)
-                if(p.first!=null)
+            if (!ipcamurl.value.isNullOrBlank()) {
+                val p = dl(ipcamurl.value!!, localuri.value)
+                if (p.first != null)
                     dlinkibm.postValue(p.first?.asImageBitmap())
-                if(p.second!=null)
+                if (p.second != null)
                     dlinkcamfilename.postValue(p.second)
             }
-            if(!webcamurl.value.isNullOrBlank()) {
-                val p = dl(webcamurl.value!!,localuri.value)
-                if(p.first!=null)
+            if (!webcamurl.value.isNullOrBlank()) {
+                val p = dl(webcamurl.value!!, localuri.value)
+                if (p.first != null)
                     webcamibm.postValue(p.first?.asImageBitmap())
-                if(p.second!=null)
+                if (p.second != null)
                     webcamfilename.postValue(p.second)
             }
 
@@ -321,34 +321,31 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                             fname = response.headers()["Content-Disposition"]
                                 ?.replace("filename=", "")
                                 ?.replace("\"", "") // ?: "${datelocaltimestring()}.jpeg"
-                            if (!fname.isNullOrBlank()) {
-                                Log.i(TAG, "download: $fname")
-                                val newdf = dftree?.createFile("image/jpeg", fname!!)
-                                val bb = body.byteStream().use {
-                                    it.readBytes()
-                                }
-                                if (newdf?.uri != null) {
-                                    viewModelScope.launch(Dispatchers.IO) {
-                                        appl.contentResolver.openOutputStream(newdf.uri)?.use {
-                                            it.write(bb)
-                                        }
+                            if (fname.isNullOrBlank()) {
+                                fname =
+                                    datelocaltimestring() + "--" + Uri.parse(urlstring).lastPathSegment
+                            }
+                            Log.i(TAG, "download: $fname")
+                            val newdf = dftree?.createFile("image/jpeg", fname!!)
+                            val bb = body.byteStream().use {
+                                it.readBytes()
+                            }
+                            if (newdf?.uri != null) {
+                                viewModelScope.launch(Dispatchers.IO) {
+                                    appl.contentResolver.openOutputStream(newdf.uri)?.use {
+                                        it.write(bb)
                                     }
-                                    bm = BitmapFactory
-                                        .decodeByteArray(bb, 0, bb.size)
-                                } else {
-
-                                    dlinkibm.postValue(
-                                        BitmapFactory.decodeByteArray(
-                                            //body.byteStream()
-                                            bb,0,bb.size
-                                        )
-                                            .asImageBitmap()
-                                    )
                                 }
+                                bm = BitmapFactory
+                                    .decodeByteArray(bb, 0, bb.size)
                             } else {
-                                Log.i(
-                                    TAG,
-                                    "download: fname is not defined in http header Content-Disposition for d-link ip camera"
+
+                                dlinkibm.postValue(
+                                    BitmapFactory.decodeByteArray(
+                                        //body.byteStream()
+                                        bb, 0, bb.size
+                                    )
+                                        .asImageBitmap()
                                 )
                             }
                         }
@@ -382,7 +379,7 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                         Toast.LENGTH_LONG
                     ).show()
                 }
-        return Pair(bm,fname)
+        return Pair(bm, fname)
     }
 }
 
