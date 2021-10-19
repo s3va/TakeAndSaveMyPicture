@@ -336,8 +336,12 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                                     bm = BitmapFactory
                                         .decodeByteArray(bb, 0, bb.size)
                                 } else {
+
                                     dlinkibm.postValue(
-                                        BitmapFactory.decodeStream(body.byteStream())
+                                        BitmapFactory.decodeByteArray(
+                                            //body.byteStream()
+                                            bb,0,bb.size
+                                        )
                                             .asImageBitmap()
                                     )
                                 }
