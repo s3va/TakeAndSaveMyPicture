@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.e(TAG, "onCreate: versionCode: ${BuildConfig.VERSION_CODE}, versionName: ${BuildConfig.VERSION_NAME}")
         setContent {
             TakeAndSaveMyPictureTheme {
                 // A surface container using the 'background' color from the theme

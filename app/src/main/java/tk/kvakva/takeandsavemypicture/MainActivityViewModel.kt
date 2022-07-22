@@ -250,9 +250,9 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                             localwebcamuri.postValue(it.toString())
                             appl.contentResolver.query(it, null, null, null, null)?.use { curs ->
                                 curs.moveToFirst()
-                                webcamfilename.postValue(
-                                    curs.getString(curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME))
-                                )
+                                val c = curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                if(c!=-1)
+                                    webcamfilename.postValue(curs.getString(c))
                             }
                         }
                     }
@@ -271,9 +271,9 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                                 appl.contentResolver.query(it, null, null, null, null)
                                     ?.use { curs ->
                                         curs.moveToFirst()
-                                        dlinkcamfilename.postValue(
-                                            curs.getString(curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME))
-                                        )
+                                        val c = curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                        if(c!=-1) // this needs more error handling
+                                            dlinkcamfilename.postValue(curs.getString(c))
                                     }
                             }
                         }
@@ -297,7 +297,11 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
             if (URLUtil.isHttpsUrl(urlstring))
                 try {
                     val response = retrofitService.getPicture(urlstring)
-                    if (response.isSuccessful) {
+                    if (response.isSuccessful
+                        &&
+                        response.headers()["Content-Type"]
+                            .equals("image/jpeg")
+                    ) {
                         val dftree = try {
                             DocumentFile.fromTreeUri(
                                 appl.applicationContext,
@@ -339,14 +343,21 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                                 bm = BitmapFactory
                                     .decodeByteArray(bb, 0, bb.size)
                             } else {
-
-                                dlinkibm.postValue(
-                                    BitmapFactory.decodeByteArray(
+                                //Log.e(TAG, "dl^^^^^: ${bb.decodeToString()}")
+                                BitmapFactory.decodeByteArray(
                                         //body.byteStream()
                                         bb, 0, bb.size
                                     )
-                                        .asImageBitmap()
-                                )
+                                    ?.asImageBitmap()?.let {
+                                        dlinkibm.postValue(it)
+                                    }
+//                                dlinkibm.postValue(
+//                                    BitmapFactory.decodeByteArray(
+//                                        //body.byteStream()
+//                                        bb, 0, bb.size
+//                                    )
+//                                        .asImageBitmap()
+                                //)
                             }
                         }
                     } else {
