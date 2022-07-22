@@ -340,17 +340,18 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                                         it.write(bb)
                                     }
                                 }
-                                bm = BitmapFactory
-                                    .decodeByteArray(bb, 0, bb.size)
+//////                                bm = BitmapFactory
+//////                                    .decodeByteArray(bb, 0, bb.size)
                             } else {
                                 //Log.e(TAG, "dl^^^^^: ${bb.decodeToString()}")
-                                BitmapFactory.decodeByteArray(
-                                        //body.byteStream()
-                                        bb, 0, bb.size
-                                    )
-                                    ?.asImageBitmap()?.let {
-                                        dlinkibm.postValue(it)
-                                    }
+                                bm = BitmapFactory.decodeByteArray(bb, 0, bb.size)
+//////                                BitmapFactory.decodeByteArray(
+//////                                        //body.byteStream()
+//////                                        bb, 0, bb.size
+//////                                    )
+//////                                    ?.asImageBitmap()?.let {
+//////                                        dlinkibm.postValue(it)
+//////                                    }
 //                                dlinkibm.postValue(
 //                                    BitmapFactory.decodeByteArray(
 //                                        //body.byteStream()
