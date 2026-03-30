@@ -79,11 +79,12 @@ jobs:
       - name: Generate Changelog
         run: |
           cat CHANGE.md > CHANGE.txt
+          echo mv app-release.apk "TakeAndSaveMyPicture.${{  github.ref_name }}.apk"
           mv app-release.apk "TakeAndSaveMyPicture.${{  github.ref_name }}.apk"         
           
       - name: Release 
         uses: softprops/action-gh-release@v2
         with:
           files: |
-             "TakeAndSaveMyPicture.${{  github.ref_name }}.apk"
+             TakeAndSaveMyPicture.${{  github.ref_name }}.apk
           body_path: CHANGE.txt
