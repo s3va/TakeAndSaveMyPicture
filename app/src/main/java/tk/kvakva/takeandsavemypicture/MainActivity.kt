@@ -3,12 +3,14 @@ package tk.kvakva.takeandsavemypicture
 import android.content.Intent
 import android.content.UriMatcher
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.*
@@ -43,7 +45,7 @@ class MainActivity : ComponentActivity() {
     private var editImgLauncher = registerForActivityResult(
         ActivityResultContracts
             .StartActivityForResult()
-    ){
+    ) {
         Log.i(TAG, "editMyPic: resultCode: ${it.resultCode}")
         Log.i(TAG, "editMyPic: data,data: ${it.data?.data}")
         Log.i(TAG, "editMyPic: data: ${it.data}")
@@ -69,7 +71,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.e(TAG, "onCreate: versionCode: ${BuildConfig.VERSION_CODE}, versionName: ${BuildConfig.VERSION_NAME}")
+
+//        enableEdgeToEdge()
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+//            // Force the 3-button navigation bar to be transparent
+//            // See: https://developer.android.com/develop/ui/views/layout/edge-to-edge#create-transparent
+//            window.isNavigationBarContrastEnforced = false
+//        }
+
+
+        Log.e(
+            TAG,
+            "onCreate: versionCode: ${BuildConfig.VERSION_CODE}, versionName: ${BuildConfig.VERSION_NAME}"
+        )
         setContent {
             TakeAndSaveMyPictureTheme {
                 // A surface container using the 'background' color from the theme
@@ -137,7 +151,7 @@ class MainActivity : ComponentActivity() {
             }
 
 
-        ) {
+        ) { p ->
             if (displaydialog) {
                 AlertDialog(
                     {
@@ -155,6 +169,7 @@ class MainActivity : ComponentActivity() {
                             Text("ok")
                         }
                     },
+                    modifier = Modifier.padding(p),
                     dismissButton = {
                         Button(
                             {
@@ -202,20 +217,21 @@ class MainActivity : ComponentActivity() {
                 )
             }
             SwipeRefresh(
+                modifier = Modifier.padding(p),
                 state = rememberSwipeRefreshState(isRefreshing),
                 onRefresh =
-                {
-                    if (mainActivityViewModel.ipcamurl.value.isNullOrBlank() and mainActivityViewModel.webcamurl.value.isNullOrBlank()) {
-                        displaydialog = true
-                        Log.i(
-                            TAG,
-                            "Greeting: Swiped but no urls found in settings"
-                        )
-                        return@SwipeRefresh
-                    }
-                    Log.i(TAG, "Greeting: Swiped")
-                    mainActivityViewModel.download()
-                },
+                    {
+                        if (mainActivityViewModel.ipcamurl.value.isNullOrBlank() and mainActivityViewModel.webcamurl.value.isNullOrBlank()) {
+                            displaydialog = true
+                            Log.i(
+                                TAG,
+                                "Greeting: Swiped but no urls found in settings"
+                            )
+                            return@SwipeRefresh
+                        }
+                        Log.i(TAG, "Greeting: Swiped")
+                        mainActivityViewModel.download()
+                    },
             ) {
                 Column(
                     Modifier
