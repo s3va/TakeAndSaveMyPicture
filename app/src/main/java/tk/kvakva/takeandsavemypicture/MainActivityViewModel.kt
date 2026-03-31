@@ -106,6 +106,7 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
 
             if (!ipcamurl.value.isNullOrBlank()) {
                 val p = dl(ipcamurl.value!!, localuri.value)
+                Log.i(TAG, "download ipCam: dl return $p")
                 if (p.first != null)
                     dlinkibm.postValue(p.first?.asImageBitmap())
                 if (p.second != null)
@@ -113,6 +114,7 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
             }
             if (!webcamurl.value.isNullOrBlank()) {
                 val p = dl(webcamurl.value!!, localuri.value)
+                Log.i(TAG, "download webCam: dl return $p")
                 if (p.first != null)
                     webcamibm.postValue(p.first?.asImageBitmap())
                 if (p.second != null)
@@ -250,8 +252,9 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                             localwebcamuri.postValue(it.toString())
                             appl.contentResolver.query(it, null, null, null, null)?.use { curs ->
                                 curs.moveToFirst()
-                                val c = curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                                if(c!=-1)
+                                val c =
+                                    curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                if (c != -1)
                                     webcamfilename.postValue(curs.getString(c))
                             }
                         }
@@ -271,8 +274,9 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
                                 appl.contentResolver.query(it, null, null, null, null)
                                     ?.use { curs ->
                                         curs.moveToFirst()
-                                        val c = curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                                        if(c!=-1) // this needs more error handling
+                                        val c =
+                                            curs.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                                        if (c != -1) // this needs more error handling
                                             dlinkcamfilename.postValue(curs.getString(c))
                                     }
                             }
@@ -297,74 +301,58 @@ class MainActivityViewModel(private val appl: Application) : AndroidViewModel(ap
             if (URLUtil.isHttpsUrl(urlstring))
                 try {
                     val response = retrofitService.getPicture(urlstring)
-                    if (response.isSuccessful
-                        &&
-                        response.headers()["Content-Type"]
-                            .equals("image/jpeg")
-                    ) {
-                        val dftree = try {
-                            DocumentFile.fromTreeUri(
-                                appl.applicationContext,
-                                Uri.parse(
-                                    localTreeUri ?: ""
+                    if (response.isSuccessful) {
+                        if (response.headers()["Content-Type"]?.startsWith("image/") == true) {
+                            val dftree = try {
+                                DocumentFile.fromTreeUri(
+                                    appl.applicationContext,
+                                    Uri.parse(
+                                        localTreeUri ?: ""
+                                    )
                                 )
-                            )
-                        } catch (e: IllegalArgumentException) {
-                            e.printStackTrace()
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    appl,
-                                    "Select catalog to save files",
-                                    Toast.LENGTH_LONG
+                            } catch (e: IllegalArgumentException) {
+                                e.printStackTrace()
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        appl,
+                                        "Select catalog to save files",
+                                        Toast.LENGTH_LONG
+                                    )
+                                        .show()
+                                }
+                                null
+                            }
+                            response.body()?.use { body ->
+                                fname = response.headers()["Content-Disposition"]
+                                    ?.replace("filename=", "")
+                                    ?.replace("\"", "") // ?: "${datelocaltimestring()}.jpeg"
+                                if (fname.isNullOrBlank()) {
+                                    fname =
+                                        datelocaltimestring() + "--" + Uri.parse(urlstring).lastPathSegment
+                                }
+                                Log.i(TAG, "download: $fname")
+                                val newdf = dftree?.createFile(
+                                    response.headers()["Content-Type"]!!.take(13),
+                                    fname
                                 )
-                                    .show()
-                            }
-                            null
-                        }
-                        response.body()?.use { body ->
-                            fname = response.headers()["Content-Disposition"]
-                                ?.replace("filename=", "")
-                                ?.replace("\"", "") // ?: "${datelocaltimestring()}.jpeg"
-                            if (fname.isNullOrBlank()) {
-                                fname =
-                                    datelocaltimestring() + "--" + Uri.parse(urlstring).lastPathSegment
-                            }
-                            Log.i(TAG, "download: $fname")
-                            val newdf = dftree?.createFile("image/jpeg", fname!!)
-                            val bb = body.byteStream().use {
-                                it.readBytes()
-                            }
-                            if (newdf?.uri != null) {
-                                viewModelScope.launch(Dispatchers.IO) {
+                                val bb = body.byteStream().use {
+                                    it.readBytes()
+                                }
+
+                                if (newdf?.uri != null) {
                                     appl.contentResolver.openOutputStream(newdf.uri)?.use {
                                         it.write(bb)
                                     }
+                                    Log.i(TAG, "dl: bb.size=${bb.size}")
+                                    bm = BitmapFactory
+                                        .decodeByteArray(bb, 0, bb.size)
                                 }
-//////                                bm = BitmapFactory
-//////                                    .decodeByteArray(bb, 0, bb.size)
-                            } else {
-                                //Log.e(TAG, "dl^^^^^: ${bb.decodeToString()}")
-                                bm = BitmapFactory.decodeByteArray(bb, 0, bb.size)
-//////                                BitmapFactory.decodeByteArray(
-//////                                        //body.byteStream()
-//////                                        bb, 0, bb.size
-//////                                    )
-//////                                    ?.asImageBitmap()?.let {
-//////                                        dlinkibm.postValue(it)
-//////                                    }
-//                                dlinkibm.postValue(
-//                                    BitmapFactory.decodeByteArray(
-//                                        //body.byteStream()
-//                                        bb, 0, bb.size
-//                                    )
-//                                        .asImageBitmap()
-                                //)
                             }
                         }
                     } else {
-                        val errorString: String? = viewModelScope.async(Dispatchers.IO) {
+                        val errorString: String? = //viewModelScope.async(Dispatchers.IO) {
                             response.errorBody()?.string()
-                        }.await()
+                        //}.await()
                         Log.i(
                             TAG,
                             "download: ${response.code()}\n\n$errorString"

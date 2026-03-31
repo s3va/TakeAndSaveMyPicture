@@ -273,8 +273,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 },
                             contentScale = ContentScale.FillWidth,
-
-                            )
+                        )
                     }
 
                     Spacer(Modifier.height(8.dp))
