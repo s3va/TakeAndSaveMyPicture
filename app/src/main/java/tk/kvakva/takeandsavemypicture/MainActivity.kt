@@ -72,12 +72,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-//        enableEdgeToEdge()
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//            // Force the 3-button navigation bar to be transparent
-//            // See: https://developer.android.com/develop/ui/views/layout/edge-to-edge#create-transparent
-//            window.isNavigationBarContrastEnforced = false
-//        }
+        enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Force the 3-button navigation bar to be transparent
+            // See: https://developer.android.com/develop/ui/views/layout/edge-to-edge#create-transparent
+            window.isNavigationBarContrastEnforced = false
+        }
 
 
         Log.e(
@@ -148,7 +148,10 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 )
-            }
+            },
+            modifier = Modifier
+                .safeDrawingPadding()
+                //.windowInsetsPadding(WindowInsets.statusBars),
 
 
         ) { p ->
