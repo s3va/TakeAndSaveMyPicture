@@ -1,1 +1,1 @@
-status overlap fix (hope)
+picture view on double tap

@@ -150,10 +150,7 @@ class MainActivity : ComponentActivity() {
                 )
             },
             modifier = Modifier
-                .safeDrawingPadding()
-                //.windowInsetsPadding(WindowInsets.statusBars),
-
-
+                .safeDrawingPadding(),
         ) { p ->
             if (displaydialog) {
                 AlertDialog(
@@ -273,6 +270,18 @@ class MainActivity : ComponentActivity() {
                                                     }
                                             }
                                         },
+                                        onDoubleTap = {
+                                            if (!dlinkfilename.isNullOrBlank()) {
+                                                Log.i(
+                                                    TAG,
+                                                    "@@@ View: ${mainActivityViewModel.localipcamuri.value}"
+                                                )
+                                                mainActivityViewModel
+                                                    .localipcamuri.value?.let { uriString ->
+                                                        viewMyPic(uriString)
+                                                    }
+                                            }
+                                        }
                                     )
                                 },
                             contentScale = ContentScale.FillWidth,
@@ -302,7 +311,7 @@ class MainActivity : ComponentActivity() {
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onLongPress = {
-                                            if (!dlinkfilename.isNullOrBlank()) {
+                                            if (!webcamfilename.isNullOrBlank()) {
                                                 Log.i(
                                                     TAG,
                                                     "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\nGreeting: ${mainActivityViewModel.localipcamuri.value}"
@@ -313,6 +322,18 @@ class MainActivity : ComponentActivity() {
                                                     }
                                             }
                                         },
+                                        onDoubleTap = {
+                                            if (!webcamfilename.isNullOrBlank()) {
+                                                Log.i(
+                                                    TAG,
+                                                    "@@@ View: ${mainActivityViewModel.localwebcamuri.value}"
+                                                )
+                                                mainActivityViewModel
+                                                    .localwebcamuri.value?.let { uriString ->
+                                                        viewMyPic(uriString)
+                                                    }
+                                            }
+                                        }
                                     )
                                 },
                         )
@@ -355,11 +376,13 @@ class MainActivity : ComponentActivity() {
         i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         editImgLauncher.launch(i)
     }
+
+    fun viewMyPic(uriStr: String) {
+        val i = Intent(Intent.ACTION_VIEW)
+        i.setDataAndType(Uri.parse(uriStr), "image/*")
+        i.putExtra(MediaStore.EXTRA_OUTPUT, Uri.parse(uriStr))
+        i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        editImgLauncher.launch(i)
+    }
+
 }
-//@Preview(showBackground = true)
-//@Composable
-//fun DefaultPreview() {
-//    TakeAndSaveMyPictureTheme {
-//        Greeting(dirpic)
-//    }
-//}
