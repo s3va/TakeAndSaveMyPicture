@@ -1,8 +1,6 @@
 package tk.kvakva.takeandsavemypicture
 
 import android.content.Intent
-import android.content.UriMatcher
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
@@ -13,26 +11,54 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.AlertDialog
+import androidx.compose.material.Button
+import androidx.compose.material.Divider
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.material.TextField
+import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
-
+import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import tk.kvakva.takeandsavemypicture.ui.theme.TakeAndSaveMyPictureTheme
 
 private const val TAG = "MainActivity"
@@ -79,7 +105,6 @@ class MainActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
         }
 
-
         Log.e(
             TAG,
             "onCreate: versionCode: ${BuildConfig.VERSION_CODE}, versionName: ${BuildConfig.VERSION_NAME}"
@@ -94,17 +119,42 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalMaterialApi::class)
     @Composable
     fun Greeting() {
-
-        val systemUiController = rememberSystemUiController()
         val isRefreshing by mainActivityViewModel.isRefreshing.collectAsState()
+        var displaydialog by remember { mutableStateOf(false) }
+
+        val refreshState = rememberPullRefreshState(isRefreshing, {
+            mainActivityViewModel.isRefreshing.value = true
+            if (mainActivityViewModel.ipcamurl.value.isNullOrBlank() and mainActivityViewModel.webcamurl.value.isNullOrBlank()) {
+                displaydialog = true
+                Log.i(
+                    TAG,
+                    "Greeting: Swiped but no urls found in settings"
+                )
+                return@rememberPullRefreshState
+            }
+            Log.i(TAG, "Greeting: Swiped")
+            mainActivityViewModel.download()
+        })
 
         val dlinkfilename by mainActivityViewModel.dlinkcamfilename.observeAsState()
         val webcamfilename by mainActivityViewModel.webcamfilename.observeAsState()
         var displayTopBar by remember { mutableStateOf(true) }
-        var displaydialog by remember { mutableStateOf(false) }
-        //var urldl by remember { mutableStateOf("") }
+        val view = LocalView.current
+
+//        SideEffect {
+//            val window = (view.context as MainActivity).window
+//            val controller = WindowCompat.getInsetsController(window, view)
+//
+//            controller.let {
+//                // it.hide(WindowInsetsCompat.Type.statusBars())  // Скрыть status bar
+//                it.systemBarsBehavior =
+//                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+//            }
+//        }
+
         val urldl: String? by mainActivityViewModel.ipcamurl.observeAsState()
         val urlwc: String? by mainActivityViewModel.webcamurl.observeAsState()
         val localuri: String? by mainActivityViewModel.localuri.observeAsState()
@@ -216,151 +266,152 @@ class MainActivity : ComponentActivity() {
                     }
                 )
             }
-            SwipeRefresh(
-                modifier = Modifier.padding(p),
-                state = rememberSwipeRefreshState(isRefreshing),
-                onRefresh =
-                    {
-                        if (mainActivityViewModel.ipcamurl.value.isNullOrBlank() and mainActivityViewModel.webcamurl.value.isNullOrBlank()) {
-                            displaydialog = true
-                            Log.i(
-                                TAG,
-                                "Greeting: Swiped but no urls found in settings"
-                            )
-                            return@SwipeRefresh
-                        }
-                        Log.i(TAG, "Greeting: Swiped")
-                        mainActivityViewModel.download()
-                    },
+            Box(
+                modifier = Modifier
+                    .padding(p)
+                    .pullRefresh(refreshState),
             ) {
-                Column(
+                LazyColumn(
                     Modifier
-                        .verticalScroll(ScrollState(0))
+                        // .verticalScroll(ScrollState(0))
                         .pointerInput(Unit) {
                             detectTapGestures(
                                 onDoubleTap = {
                                     displayTopBar = !displayTopBar
-                                    systemUiController.isStatusBarVisible = displayTopBar
+                                    val controller = WindowCompat.getInsetsController(
+                                        (view.context as MainActivity).window,
+                                        view
+                                    )
+
+                                    if (displayTopBar) {
+                                        controller.show(WindowInsetsCompat.Type.statusBars())
+                                        //controller.show(WindowInsetsCompat.Type.navigationBars())
+                                    } else {
+                                        controller.hide(WindowInsetsCompat.Type.statusBars())
+                                        //controller.hide(WindowInsetsCompat.Type.navigationBars())
+                                    }
                                 },
                             )
                         }
                 ) {
 
-                    dlinkfilename?.let {
-                        Text(it)
-                    }
-                    imgbmipc?.let { it1 ->
-                        Image(
-                            bitmap = it1,
-                            // painterResource(R.drawable.wg433),
-                            "another picture",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onLongPress = {
-                                            if (!dlinkfilename.isNullOrBlank()) {
-                                                Log.i(
-                                                    TAG,
-                                                    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\nGreeting: ${mainActivityViewModel.localipcamuri.value}"
-                                                )
-                                                mainActivityViewModel
-                                                    .localipcamuri.value?.let { uriString ->
-                                                        editMyPic(uriString)
-                                                    }
+                    item {
+                        dlinkfilename?.let {
+                            Text(it)
+                        }
+                        imgbmipc?.let { it1 ->
+                            Image(
+                                bitmap = it1,
+                                // painterResource(R.drawable.wg433),
+                                "another picture",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                if (!dlinkfilename.isNullOrBlank()) {
+                                                    Log.i(
+                                                        TAG,
+                                                        "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\nGreeting: ${mainActivityViewModel.localipcamuri.value}"
+                                                    )
+                                                    mainActivityViewModel
+                                                        .localipcamuri.value?.let { uriString ->
+                                                            editMyPic(uriString)
+                                                        }
+                                                }
+                                            },
+                                            onDoubleTap = {
+                                                if (!dlinkfilename.isNullOrBlank()) {
+                                                    Log.i(
+                                                        TAG,
+                                                        "@@@ View: ${mainActivityViewModel.localipcamuri.value}"
+                                                    )
+                                                    mainActivityViewModel
+                                                        .localipcamuri.value?.let { uriString ->
+                                                            viewMyPic(uriString)
+                                                        }
+                                                }
                                             }
-                                        },
-                                        onDoubleTap = {
-                                            if (!dlinkfilename.isNullOrBlank()) {
-                                                Log.i(
-                                                    TAG,
-                                                    "@@@ View: ${mainActivityViewModel.localipcamuri.value}"
-                                                )
-                                                mainActivityViewModel
-                                                    .localipcamuri.value?.let { uriString ->
-                                                        viewMyPic(uriString)
-                                                    }
-                                            }
-                                        }
-                                    )
-                                },
-                            contentScale = ContentScale.FillWidth,
+                                        )
+                                    },
+                                contentScale = ContentScale.FillWidth,
+                            )
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+                        Divider(
+                            color = Color.Green,
+                            thickness = 4.dp,
                         )
-                    }
+                        Spacer(Modifier.height(8.dp))
 
-                    Spacer(Modifier.height(8.dp))
-                    Divider(
-                        color = Color.Green,
-                        thickness = 4.dp,
-                    )
-                    Spacer(Modifier.height(8.dp))
+                        webcamfilename?.let {
+                            Text(it)
+                        }
+                        imgbmweb?.let { it1 ->
+                            Image(
+                                it1,
+                                "sexy girl",
+                                contentScale = ContentScale.FillWidth,
+                                //modifier = Modifier
+                                //.align(Alignment.CenterHorizontally)
+                                //.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                if (!webcamfilename.isNullOrBlank()) {
+                                                    Log.i(
+                                                        TAG,
+                                                        "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\nGreeting: ${mainActivityViewModel.localipcamuri.value}"
+                                                    )
+                                                    mainActivityViewModel
+                                                        .localwebcamuri.value?.let { uriString ->
+                                                            editMyPic(uriString)
+                                                        }
+                                                }
+                                            },
+                                            onDoubleTap = {
+                                                if (!webcamfilename.isNullOrBlank()) {
+                                                    Log.i(
+                                                        TAG,
+                                                        "@@@ View: ${mainActivityViewModel.localwebcamuri.value}"
+                                                    )
+                                                    mainActivityViewModel
+                                                        .localwebcamuri.value?.let { uriString ->
+                                                            viewMyPic(uriString)
+                                                        }
+                                                }
+                                            }
+                                        )
+                                    },
+                            )
+                        }
 
-                    webcamfilename?.let {
-                        Text(it)
-                    }
-                    imgbmweb?.let { it1 ->
-                        Image(
-                            it1,
-                            "sexy girl",
-                            contentScale = ContentScale.FillWidth,
-                            //modifier = Modifier
-                            //.align(Alignment.CenterHorizontally)
-                            //.fillMaxWidth()
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onLongPress = {
-                                            if (!webcamfilename.isNullOrBlank()) {
-                                                Log.i(
-                                                    TAG,
-                                                    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\nGreeting: ${mainActivityViewModel.localipcamuri.value}"
-                                                )
-                                                mainActivityViewModel
-                                                    .localwebcamuri.value?.let { uriString ->
-                                                        editMyPic(uriString)
-                                                    }
-                                            }
-                                        },
-                                        onDoubleTap = {
-                                            if (!webcamfilename.isNullOrBlank()) {
-                                                Log.i(
-                                                    TAG,
-                                                    "@@@ View: ${mainActivityViewModel.localwebcamuri.value}"
-                                                )
-                                                mainActivityViewModel
-                                                    .localwebcamuri.value?.let { uriString ->
-                                                        viewMyPic(uriString)
-                                                    }
-                                            }
-                                        }
-                                    )
-                                },
+                        Spacer(Modifier.height(8.dp))
+                        Divider(
+                            color = Color.Green,
+                            thickness = 4.dp
                         )
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-                    Divider(
-                        color = Color.Green,
-                        thickness = 4.dp
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row {
-                        Button(
-                            onClick = {
-                                if (mainActivityViewModel.ipcamurl.value.isNullOrBlank() and mainActivityViewModel.webcamurl.value.isNullOrBlank()) {
-                                    displaydialog = true
-                                    Log.i(
-                                        TAG,
-                                        "Greeting: Download clicked but no urls found in settings"
-                                    )
-                                    return@Button
+                        Spacer(Modifier.height(8.dp))
+                        Row {
+                            Button(
+                                onClick = {
+                                    if (mainActivityViewModel.ipcamurl.value.isNullOrBlank() and mainActivityViewModel.webcamurl.value.isNullOrBlank()) {
+                                        displaydialog = true
+                                        Log.i(
+                                            TAG,
+                                            "Greeting: Download clicked but no urls found in settings"
+                                        )
+                                        return@Button
+                                    }
+                                    Log.i(TAG, "Greeting: Download clicked")
+                                    mainActivityViewModel.download()
                                 }
-                                Log.i(TAG, "Greeting: Download clicked")
-                                mainActivityViewModel.download()
+                            ) {
+                                Text(text = "Download")
                             }
-                        ) {
-                            Text(text = "Download")
                         }
                     }
                 }
@@ -370,8 +421,8 @@ class MainActivity : ComponentActivity() {
 
     fun editMyPic(uriStr: String) {
         val i = Intent(Intent.ACTION_EDIT)
-        i.setDataAndType(Uri.parse(uriStr), "image/*")
-        i.putExtra(MediaStore.EXTRA_OUTPUT, Uri.parse(uriStr))
+        i.setDataAndType(uriStr.toUri(), "image/*")
+        i.putExtra(MediaStore.EXTRA_OUTPUT, uriStr.toUri())
         i.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         editImgLauncher.launch(i)
@@ -379,8 +430,8 @@ class MainActivity : ComponentActivity() {
 
     fun viewMyPic(uriStr: String) {
         val i = Intent(Intent.ACTION_VIEW)
-        i.setDataAndType(Uri.parse(uriStr), "image/*")
-        i.putExtra(MediaStore.EXTRA_OUTPUT, Uri.parse(uriStr))
+        i.setDataAndType(uriStr.toUri(), "image/*")
+        //i.putExtra(MediaStore.EXTRA_OUTPUT, uriStr.toUri())
         i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         editImgLauncher.launch(i)
     }

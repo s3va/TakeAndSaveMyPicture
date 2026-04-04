@@ -1,1 +1,1 @@
-picture view on double tap
+accompanist wiped out
