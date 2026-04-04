@@ -1,1 +1,1 @@
-accompanist wiped out
+Five years later, the library versions were updated.
